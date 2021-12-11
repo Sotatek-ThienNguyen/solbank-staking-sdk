@@ -517,30 +517,37 @@ export class Instructions {
     accounts: {
       poolAccount: PublicKey;
       authority: PublicKey;
-      rootAdminAccount: PublicKey;
       tokenAccountX: PublicKey;
-      payerAccount: PublicKey;
+      tokenAccountY: PublicKey;
+      admin: PublicKey;
     },
     inputData: {
       nonce: number;
-      fee: number;
     },
   ) {
     const keys = [
       {pubkey: accounts.poolAccount, isSigner: false, isWritable: true},
       {pubkey: accounts.authority, isSigner: false, isWritable: false},
       {pubkey: accounts.tokenAccountX, isSigner: false, isWritable: false},
-      {pubkey: accounts.rootAdminAccount, isSigner: false, isWritable: false},
+      {pubkey: accounts.tokenAccountY, isSigner: false, isWritable: false},
+      {pubkey: accounts.admin, isSigner: false, isWritable: false},
+      {
+        pubkey: new PublicKey('SysvarC1ock11111111111111111111111111111111'),
+        isSigner: false,
+        isWritable: false,
+      }
     ];
 
+    console.log('--start');
+    
     const commandDataLayout = BufferLayout.struct(InitPoolLayout);
+    console.log('--start2-------', inputData.nonce);
     let data = Buffer.alloc(1024);
     {
       const encodeLength = commandDataLayout.encode(
         {
           instruction: 0, // InitializeSwap instruction
-          nonce: inputData.nonce,
-          fee: inputData.fee,
+          nonce: inputData.nonce
         },
         data,
       );

@@ -18,6 +18,79 @@ export class Actions {
     this.connection = connection;
   }
 
+  async createPool(payer: PublicKey, tokenX: PublicKey, tokenY: PublicKey, admin: PublicKey) {
+    const recentBlockhash = await this.connection.getRecentBlockhash();
+    const transaction = new Transaction({
+      recentBlockhash: recentBlockhash.blockhash,
+      feePayer: payer,
+    });
+
+    const {poolAccount, instruction} = await Instructions.createPoolAccountInstruction(this.connection,payer);
+    transaction.add(instruction);
+    const programId = new PublicKey(POOL_PROGRAM_ID);
+    const [poolAuthority, nonce] = await PublicKey.findProgramAddress(
+      [poolAccount.publicKey.toBuffer()],
+      programId,
+    );
+    
+    const poolTokenXAccount = Keypair.generate();
+    const poolTokenYAccount = Keypair.generate();
+
+    transaction.add(
+      await Instructions.createTokenAccountInstruction(
+        this.connection,
+        payer,
+        poolTokenXAccount.publicKey,
+      ),
+      await Instructions.createTokenAccountInstruction(
+        this.connection,
+        payer,
+        poolTokenYAccount.publicKey,
+      ),
+      Instructions.createInitTokenAccountInstruction(
+        tokenX,
+        poolTokenXAccount.publicKey,
+        poolAuthority,
+      ),
+      Instructions.createInitTokenAccountInstruction(
+        tokenY,
+        poolTokenYAccount.publicKey,
+        poolAuthority,
+      ),
+      
+      Instructions.createInitPoolInstruction(
+        {
+          poolAccount: poolAccount.publicKey,
+          authority: poolAuthority,
+          tokenAccountX: poolTokenXAccount.publicKey,
+          tokenAccountY: poolTokenYAccount.publicKey,
+          admin: admin
+        },
+        {
+          nonce,
+        },
+      ),
+    );
+
+    const unsignedTransaction = Transaction.from(
+      transaction.serialize({
+        verifySignatures: true,
+        requireAllSignatures: false,
+      }),
+    );
+    const unsignedData = transaction.compileMessage().serialize();
+    transaction.sign(poolAccount, poolTokenXAccount,poolTokenYAccount);
+
+    return {
+      unsignedTransaction,
+      unsignedData,
+      transaction,
+      poolAccount,
+      poolTokenXAccount,
+      poolTokenYAccount,
+    };
+  }
+
   public async getLamportPerSignature(blockhash: any): Promise<number> {
     const feeCalculator = await this.connection.getFeeCalculatorForBlockhash(blockhash);
 
@@ -54,79 +127,6 @@ export class Actions {
     };
   }
 
-  public async withdraw(
-    adminAddress: PublicKey,
-    withdrawAddress: PublicKey,
-    poolAddress: PublicKey,
-    amount: number,
-  ) {
-    const {blockhash} = await this.connection.getRecentBlockhash();
-    const transaction = new Transaction({
-      recentBlockhash: blockhash,
-      feePayer: adminAddress,
-    });
-    const poolProgramId = await this.getPoolProgramId(poolAddress);
-    const {token_x} = await this.readPool(poolAddress);
-    const authority = await this.findPoolAuthority(poolAddress);
-    const {
-      associatedAddress: associatedAdminToken,
-      exists: associatedAddressExists,
-    } = await this.getAssociatedAccountInfo(adminAddress, WRAPPED_SOL_MINT);
-
-    if (!associatedAddressExists) {
-      // create associated address if not exists
-      transaction.add(
-        Instructions.createAssociatedTokenAccountInstruction(
-          adminAddress,
-          adminAddress,
-          WRAPPED_SOL_MINT,
-          associatedAdminToken,
-        ),
-      );
-    }
-
-    const txFee = await this.getLamportPerSignature(blockhash);
-
-    transaction.add(
-      Instructions.withdraw(
-        {
-          poolAccount: poolAddress,
-          userAuthority: authority,
-          adminAccount: adminAddress,
-          withdrawAccount: associatedAdminToken,
-          poolSourceTokenAccount: new PublicKey(token_x),
-          tokenProgramId: TOKEN_PROGRAM_ID,
-        },
-        {
-          outcoming_amount: amount * LAMPORTS_PER_SOL
-        },
-        poolProgramId,
-      ),
-      Instructions.closeAccountInstruction({
-        programId: TOKEN_PROGRAM_ID,
-        account: associatedAdminToken,
-        dest: adminAddress,
-        owner: adminAddress,
-        signers: [],
-      }),
-      SystemProgram.transfer({
-        fromPubkey: adminAddress,
-        toPubkey: withdrawAddress,
-        lamports: amount * LAMPORTS_PER_SOL,
-      }),
-    );
-
-    const rawTx = transaction.serialize({
-      requireAllSignatures: false,
-      verifySignatures: true,
-    });
-
-    return {
-      rawTx,
-      txFee,
-      unsignedTransaction: transaction,
-    };
-  }
 
 
   public async transferPoolAdmin(
@@ -265,69 +265,6 @@ export class Actions {
     return poolData;
   }
 
-  async createPool(payer: PublicKey, tokenX: PublicKey, fee: number) {
-    const recentBlockhash = await this.connection.getRecentBlockhash();
-    const transaction = new Transaction({
-      recentBlockhash: recentBlockhash.blockhash,
-      feePayer: payer,
-    });
-
-    const {poolAccount, instruction} = await Instructions.createPoolAccountInstruction(
-      this.connection,
-      payer,
-    );
-    transaction.add(instruction);
-    const programId = new PublicKey(POOL_PROGRAM_ID);
-    const [poolAuthority, nonce] = await PublicKey.findProgramAddress(
-      [poolAccount.publicKey.toBuffer()],
-      programId,
-    );
-    const poolTokenXAccount = Keypair.generate();
-
-    transaction.add(
-      await Instructions.createTokenAccountInstruction(
-        this.connection,
-        payer,
-        poolTokenXAccount.publicKey,
-      ),
-      Instructions.createInitTokenAccountInstruction(
-        tokenX,
-        poolTokenXAccount.publicKey,
-        poolAuthority,
-      ),
-
-      Instructions.createInitPoolInstruction(
-        {
-          poolAccount: poolAccount.publicKey,
-          authority: poolAuthority,
-          rootAdminAccount: payer,
-          tokenAccountX: poolTokenXAccount.publicKey,
-          payerAccount: payer,
-        },
-        {
-          fee,
-          nonce,
-        },
-      ),
-    );
-
-    const unsignedTransaction = Transaction.from(
-      transaction.serialize({
-        verifySignatures: false,
-        requireAllSignatures: false,
-      }),
-    );
-    const unsignedData = transaction.compileMessage().serialize();
-    transaction.sign(poolAccount, poolTokenXAccount);
-
-    return {
-      unsignedTransaction,
-      unsignedData,
-      transaction,
-      poolAccount,
-      poolTokenXAccount,
-    };
-  }
 
   async estimateNetworkTransactionFee(): Promise<number> {
     const {blockhash} = await this.connection.getRecentBlockhash();

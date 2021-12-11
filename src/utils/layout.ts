@@ -10,6 +10,13 @@ export const publicKey = (property = 'publicKey') => {
 };
 
 /**
+ * Layout for snapshot history
+ */
+export const snapshotHistory = (property = 'snapshot_history'): any => {
+  return BufferLayout.blob(24, property);
+};
+
+/**
  * Layout for a 64bit unsigned value
  */
 export const uint64 = (property = 'uint64') => {
