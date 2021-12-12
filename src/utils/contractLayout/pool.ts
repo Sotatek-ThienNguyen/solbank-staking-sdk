@@ -1,12 +1,12 @@
 import * as BufferLayout from 'buffer-layout';
 import * as Layout from '../layout';
 
-export const PoolLayout = BufferLayout.struct([
+export const StakingPoolLayout = BufferLayout.struct([
   Layout.bool('is_initialized'),
   BufferLayout.u32('version'),
   BufferLayout.u8('nonce'),
   Layout.publicKey('token_x_stake_account'),
-  Layout.publicKey('reward_account'),
+  Layout.publicKey('token_y_reward_account'),
   Layout.snapshotHistory('snap_1'),
   Layout.snapshotHistory('snap_2'),
   Layout.snapshotHistory('snap_3'),

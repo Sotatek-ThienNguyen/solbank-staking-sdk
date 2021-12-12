@@ -7,3 +7,7 @@ export const clockSysvarAccount: PublicKey = new PublicKey(
 export const POOL_PROGRAM_ID = '8jsjZQTTWNqayoojyGjS2NjWEUjJgxcWvHorBhopQGWg';
 
 export const POOL_CONTRACT_ADDRESS = 'Aqycw1YgXp1oYgEbCd8xcPePcxRLX8zon2bkET1x1XrD';
+
+
+// TODO: update value
+export const CURRENT_STAKE_PROGRAM_ID = '';

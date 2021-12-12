@@ -11,7 +11,7 @@ import {
 } from '@solana/web3.js';
 import * as BufferLayout from 'buffer-layout';
 import {POOL_PROGRAM_ID} from '../../index';
-import {InitPoolLayout, PoolLayout} from './contractLayout';
+import {InitPoolLayout, StakingPoolLayout} from './contractLayout';
 import * as Layout from './layout';
 import {Numberu64} from './layout';
 
@@ -94,7 +94,7 @@ export class Instructions {
 
   static async createPoolAccountInstruction(connection: Connection, payer: PublicKey) {
     const poolAccount = Keypair.generate();
-    const balanceNeeded = await connection.getMinimumBalanceForRentExemption(PoolLayout.span);
+    const balanceNeeded = await connection.getMinimumBalanceForRentExemption(StakingPoolLayout.span);
 
     return {
       poolAccount,
@@ -102,7 +102,7 @@ export class Instructions {
         fromPubkey: payer,
         newAccountPubkey: new PublicKey(poolAccount.publicKey),
         lamports: balanceNeeded,
-        space: PoolLayout.span,
+        space: StakingPoolLayout.span,
         programId: new PublicKey(POOL_PROGRAM_ID),
       }),
     };
@@ -539,7 +539,7 @@ export class Instructions {
     ];
 
     console.log('--start');
-    
+
     const commandDataLayout = BufferLayout.struct(InitPoolLayout);
     console.log('--start2-------', inputData.nonce);
     let data = Buffer.alloc(1024);

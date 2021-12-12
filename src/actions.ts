@@ -9,7 +9,7 @@ import {
   Transaction,
 } from '@solana/web3.js';
 import Decimal from 'decimal.js';
-import {IExtractPoolData, Instructions, PoolLayout, POOL_PROGRAM_ID} from '../index';
+import {IExtractPoolData, Instructions, StakingPoolLayout, POOL_PROGRAM_ID} from '../index';
 
 export class Actions {
   private connection: Connection;
@@ -32,7 +32,7 @@ export class Actions {
       [poolAccount.publicKey.toBuffer()],
       programId,
     );
-    
+
     const poolTokenXAccount = Keypair.generate();
     const poolTokenYAccount = Keypair.generate();
 
@@ -57,7 +57,7 @@ export class Actions {
         poolTokenYAccount.publicKey,
         poolAuthority,
       ),
-      
+
       Instructions.createInitPoolInstruction(
         {
           poolAccount: poolAccount.publicKey,
@@ -126,7 +126,6 @@ export class Actions {
       unsignedTransaction: transaction,
     };
   }
-
 
 
   public async transferPoolAdmin(
@@ -245,27 +244,6 @@ export class Actions {
     )[0];
   }
 
-  async readPool(poolAddress: PublicKey): Promise<IExtractPoolData> {
-    const accountInfo = await this.connection.getAccountInfo(poolAddress);
-    if (!accountInfo) {
-      throw new Error('Can not find pool address');
-    }
-    const result = PoolLayout.decode(Buffer.from(accountInfo.data));
-
-    const poolData = {
-      nonce: result.nonce,
-      root_admin: new PublicKey(result.root_admin).toString(),
-      admin: new PublicKey(result.admin).toString(),
-      token_x: new PublicKey(result.token_x).toString(),
-      fee_amount: new Decimal(result.fee_amount).toNumber(),
-      fee: new Decimal(result.fee).toNumber(),
-    };
-
-    console.log(poolData, '--poolData');
-    return poolData;
-  }
-
-
   async estimateNetworkTransactionFee(): Promise<number> {
     const {blockhash} = await this.connection.getRecentBlockhash();
     const txFee = await this.getLamportPerSignature(blockhash);
@@ -300,7 +278,7 @@ export class Actions {
         requireAllSignatures: false,
         verifySignatures: true,
       });
-  
+
       return {
         rawTx,
         unsignedTransaction: transaction,
